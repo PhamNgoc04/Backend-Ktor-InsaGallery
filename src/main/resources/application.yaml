@@ -1,0 +1,19 @@
+ktor:
+    application:
+        modules:
+            - com.codewithngoc.instagallery.ApplicationKt.module
+    deployment:
+        port: 8080
+
+jwt:
+  domain: "http://0.0.0.0:8080/"
+  audience: "client"
+  issuer: "http://0.0.0.0:8080/"
+  realm: "instagallery_api"
+  claimField: "id"
+  expiresIn : 3600000
+
+database:
+  url: "jdbc:mysql://localhost:3306/instagallery_api_database"
+  user: "instagallery_api_database_user"
+  driver : "com.mysql.cj.jdbc.Driver"
