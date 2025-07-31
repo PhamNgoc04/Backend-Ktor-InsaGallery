@@ -25,6 +25,7 @@ fun Application.generateToken(user: User): String {
         .withIssuer(jwtIssuer)
         .withAudience(jwtAudience)
         .withClaim(claimField, user.userId) // Sử dụng userId từ model User của bạn
+        .withClaim("role", user.role) // Thêm role nếu cần
         .withExpiresAt(Date(System.currentTimeMillis() + expiresIn))
         .sign(Algorithm.HMAC256(jwtSecret))
 }

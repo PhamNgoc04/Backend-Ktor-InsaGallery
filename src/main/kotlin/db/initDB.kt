@@ -47,19 +47,35 @@ fun Application.initDB() {
 
     transaction(db) {
         SchemaUtils.create(
-            // Bảng User
+            // ===== User & Session =====
             UsersTable,
-            // Bảng Post
-            PostsTable, FiltersTable, PostMediaTable,
-            // Bảng Tương tác
-            FollowersTable, LikesTable, CommentsTable, SavedPostsTable,
-            // Bảng Booking
-            BookingsTable, RatingsTable,
-            // Bảng Nhắn tin
-            NotificationsTable, MessagesTable,
-            // Bảng Bổ sung
-            UserSessionsTable, MediaTagsTable, PostMediaTagsTable,
-            ActivityLogsTable, ReportsTable, SearchHistoriesTable
+            UserSessionsTable,
+
+            // ===== Post & Media =====
+            PostsTable,
+            FiltersTable,
+            PostMediaTable,
+            MediaTagsTable,
+            PostMediaTagsTable,
+
+            // ===== Interactions =====
+            FollowersTable,
+            LikesTable,
+            CommentsTable,
+            SavedPostsTable,
+
+            // ===== Booking & Rating =====
+            BookingsTable,
+            RatingsTable,
+
+            // ===== Messaging & Notification =====
+            MessagesTable,
+            NotificationsTable,
+
+            // ===== Logs & Tracking =====
+            ActivityLogsTable,
+            ReportsTable,
+            SearchHistoriesTable
         )
     }
 }

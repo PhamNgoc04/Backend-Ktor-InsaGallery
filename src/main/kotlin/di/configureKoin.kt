@@ -9,5 +9,8 @@ fun Application.configureKoin() {
     install(Koin) {
         slf4jLogger()
         modules(listOf(reposModule, servicesModule))
+        properties(
+            mapOf("application" to this@configureKoin)
+        )
     }
 }
