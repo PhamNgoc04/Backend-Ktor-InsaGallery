@@ -8,10 +8,7 @@ data class RegisterRequest(
     val email: String,
     val password: String,
     val fullName: String,
-    val userType: String,
-    val role: String = "USER"
 )
-
 @Serializable
 data class LoginRequest(val email: String, val password: String)
 

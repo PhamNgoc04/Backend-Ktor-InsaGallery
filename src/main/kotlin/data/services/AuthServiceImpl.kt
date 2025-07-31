@@ -4,7 +4,6 @@ import com.codewithngoc.instagallery.config.generateToken
 import com.codewithngoc.instagallery.db.entities.UserEntity
 import com.codewithngoc.instagallery.db.utils.dbQuery
 import com.codewithngoc.instagallery.domain.models.AuthResponse
-import com.codewithngoc.instagallery.domain.models.ChangePasswordRequest
 import com.codewithngoc.instagallery.domain.models.LoginRequest
 import com.codewithngoc.instagallery.domain.models.LoginResponse
 import com.codewithngoc.instagallery.domain.models.RegisterRequest
@@ -19,6 +18,7 @@ class AuthServiceImpl(
     private val app: Application // Giả sử bạn cần truy cập vào ứng dụng để lấy jwtService
 ): AuthService {
 
+    // ✅ Đăng ký người dùng mới
     override suspend fun registerUser(registerRequest: RegisterRequest): Result<AuthResponse> {
         return try {
             val user = authRepository.registerUser(registerRequest)
@@ -39,6 +39,7 @@ class AuthServiceImpl(
         }
     }
 
+    // ✅ Đăng nhập người dùng
     override suspend fun loginUser(request: LoginRequest): Result<LoginResponse> {
         return try {
             val user = authRepository.loginUser(request)
@@ -60,10 +61,21 @@ class AuthServiceImpl(
         }
     }
 
-    override suspend fun logout(refreshToken: String): Boolean {
-        TODO("Not yet implemented")
+    // ✅ Thay đổi mật khẩu
+    override suspend fun logout(refreshToken: String): Result<Boolean> {
+        return try {
+           val success = authRepository.logout(refreshToken)
+            if (success) {
+                Result.success(true)
+            } else {
+                Result.failure(Exception("Refresh token not found or could not be invalidated"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
+    // ✅ Hàm lấy thông tin người dùng theo ID
     override suspend fun getUserById(userId: Int): Result<UserProfileResponse> {
         return try {
             val userEntity = authRepository.getUserById(userId)
@@ -77,6 +89,7 @@ class AuthServiceImpl(
         }
     }
 
+    // ✅ Hàm cập nhật thông tin người dùng
     override suspend fun updateUserProfile(
         userId: Int,
         updateRequest: UpdateProfileRequest
@@ -97,11 +110,26 @@ class AuthServiceImpl(
         }
     }
 
+    // ✅ Hàm xóa người dùng theo ID
     override suspend fun deleteUserById(userId: Int): Result<Unit> {
         return try {
             val deleted = authRepository.deleteUserById(userId)
             if (deleted) {
                 Result.success(Unit)
+            } else {
+                Result.failure(Exception("❌ User not found"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ✅ Lấy thông tin công khai của người dùng theo username
+    override suspend fun getPublicProfileByUsername(username: String): Result<UserProfileResponse> {
+        return try {
+            val user = authRepository.getPublicProfileByUsername(username)
+            if (user != null) {
+                Result.success(user.toUserProfileResponse())
             } else {
                 Result.failure(Exception("❌ User not found"))
             }

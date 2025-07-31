@@ -9,8 +9,32 @@ data class User(
     val email: String,
     val fullName: String,
     val userType: String,
-    val role: String
-)
+    val role: String,
+    val profilePictureUrl: String? = null,
+    val bio: String? = null,
+    val website: String? = null,
+    val gender: String? = null,
+    val dateOfBirth: String? = null,
+    val location: String? = null,
+    val isVerified: Boolean = false
+) {
+    // Hàm chuyển đổi từ User sang UserProfileResponse
+    fun toUserProfileResponse(): UserProfileResponse = UserProfileResponse(
+        userId = this.userId,
+        username = this.username,
+        fullName = this.fullName,
+        profilePictureUrl = this.profilePictureUrl,
+        bio = this.bio,
+        website = this.website,
+        gender = this.gender,
+        dateOfBirth = this.dateOfBirth,
+        location = this.location,
+        isVerified = this.isVerified,
+        postCount = 0,
+        followerCount = 0,
+        followingCount = 0
+    )
+}
 
 @Serializable
 data class UserSimpleResponse(
@@ -21,6 +45,7 @@ data class UserSimpleResponse(
 
 @Serializable
 data class UpdateProfileRequest(
+    val username: String?,
     val fullName: String?,
     val bio: String?,
     val profilePictureUrl: String?,
@@ -36,10 +61,12 @@ data class UpdateProfileRequest(
 data class UserProfileResponse(
     val userId: Int,
     val username: String,
-    val email: String,
     val fullName: String,
     val profilePictureUrl: String?,
     val bio: String?,
+    val website: String? = null,
+    val gender: String? = null,
+    val dateOfBirth: String? = null,
     val location: String?,
     val isVerified: Boolean,
     val postCount: Int,

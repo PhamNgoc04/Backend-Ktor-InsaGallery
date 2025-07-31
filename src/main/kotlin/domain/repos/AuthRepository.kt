@@ -29,4 +29,7 @@ interface AuthRepository {
 
     // ✅ Cập nhật thông tin người dùng
     suspend fun updateUserProfile(userId: Int, updateRequest: UpdateProfileRequest): User?
+
+    // ✅ Lấy thông tin công khai của người dùng theo username
+    suspend fun getPublicProfileByUsername(username: String): User?
 }

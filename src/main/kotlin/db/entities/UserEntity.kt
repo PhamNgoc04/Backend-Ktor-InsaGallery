@@ -43,7 +43,14 @@ class UserEntity(id: EntityID<Int>) : IntEntity(id) {
         email = email,
         fullName = fullName,
         userType = userType.name,
-        role = role.name
+        role = role.name,
+        profilePictureUrl = profilePictureUrl,
+        bio = bio,
+        website = website,
+        gender = gender,
+        dateOfBirth = dateOfBirth?.toString(),
+        location = location,
+        isVerified = isVerified
     )
 
     /**
@@ -52,10 +59,13 @@ class UserEntity(id: EntityID<Int>) : IntEntity(id) {
     fun toUserProfileResponse(): UserProfileResponse = UserProfileResponse(
         userId = id.value,
         username = username,
-        email = email,
+//        email = email,
         fullName = fullName,
         profilePictureUrl = profilePictureUrl,
         bio = bio,
+        website = website,
+        gender = gender,
+        dateOfBirth = dateOfBirth.toString(),
         location = location,
         isVerified = isVerified,
         postCount = 0,       // TODO: Implement query: PostsTable.select { post.userId eq id }.count()
@@ -64,20 +74,15 @@ class UserEntity(id: EntityID<Int>) : IntEntity(id) {
     )
 
     /**
-     * Chuyển UserEntity sang response đơn giản
-     */
-    fun toUserSimpleResponse(): UserSimpleResponse = UserSimpleResponse(
-        userId = id.value,
-        username = username,
-        profilePictureUrl = profilePictureUrl
-    )
-
-    /**
      * Cập nhật thông tin profile từ request
      */
     fun updateFrom(request: UpdateProfileRequest) {
         println("🔧 Updating UserEntity from request: $request")
 
+        request.username?.let {
+            println("➡️ Updating username: $it")
+            username = it
+        }
         request.fullName?.let {
             println("➡️ Updating fullName: $it")
             fullName = it
