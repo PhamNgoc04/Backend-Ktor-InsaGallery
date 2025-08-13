@@ -47,7 +47,8 @@ class PostRepositoryImpl : PostRepository {
     override suspend fun addPostMedia(postId: Int, mediaItems: List<MediaItem>) = dbQuery {
         mediaItems.forEach { item ->
             PostMediaEntity.new {
-                this.postId = EntityID(postId, PostsTable)
+                this.postId = PostEntity.findById(postId)
+                    ?: throw IllegalArgumentException("Post with ID $postId not found")
                 this.mediaFileUrl = item.mediaFileUrl
                 this.thumbnailUrl = item.thumbnailUrl
                 this.mediaType = item.mediaType
@@ -170,6 +171,23 @@ class PostRepositoryImpl : PostRepository {
         val deleted = PostEntity.all().count()
         PostEntity.all().forEach { it.delete() }
         deleted > 0
+    }
+
+    override suspend fun getAllPosts(): List<Post> = dbQuery {
+        PostEntity
+            .all()
+            .orderBy(PostsTable.createdAt to SortOrder.DESC) // Sắp xếp mới nhất trước
+            .map { postEntity ->
+            Post(
+                postId = postEntity.id.value,
+                userId = postEntity.userId.value,
+                caption = postEntity.caption,
+                location = postEntity.location,
+                visibility = postEntity.visibility,
+                likeCount = postEntity.likeCount,
+                commentCount = postEntity.commentCount
+            )
+        }
     }
 
     override suspend fun deleteMediaForPost(postId: Int) {

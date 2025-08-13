@@ -21,6 +21,10 @@ interface PostRepository {
     suspend fun getPostCommentCount(postId: Int): Int
     suspend fun deleteAllPosts(): Boolean
 
+    // Lấy tất cả bài viết của người dùng
+    suspend fun getAllPosts(): List<Post>
+
+
     //
     suspend fun deleteMediaForPost(postId: Int)
     suspend fun addMediaToPost(postId: Int, mediaItem: MediaItem)

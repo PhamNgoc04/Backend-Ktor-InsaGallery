@@ -270,5 +270,38 @@ class PostServiceImpl(
         }
     }
 
+    override suspend fun getAllPosts(): Result<List<PostResponse>> {
+        return try {
+            val posts = postRepository.getAllPosts()
+
+            val responses = posts.map { post ->
+                val media = postRepository.getMediaForPost(post.postId)
+                val authorEntity = dbQuery { UserEntity.findById(post.userId) }
+                    ?: throw Exception("Author not found for post ID: ${post.postId}")
+
+                val author = AuthorInfoResponse(
+                    userId = authorEntity.id.value,
+                    username = authorEntity.username,
+                    profilePictureUrl = authorEntity.profilePictureUrl
+                )
+
+                PostResponse(
+                    postId = post.postId,
+                    author = author,
+                    caption = post.caption,
+                    location = post.location,
+                    visibility = post.visibility,
+                    media = media,
+                    likeCount = post.likeCount,
+                    commentCount = post.commentCount
+                )
+            }
+            Result.success(responses)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
 
 }

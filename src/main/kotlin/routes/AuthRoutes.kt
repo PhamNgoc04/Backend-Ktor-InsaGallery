@@ -24,17 +24,42 @@ fun Application.authRoutes(authService: AuthService) {
         route("/api/auth") {
             /**
              * 📌 Đăng ký tài khoản mới
+             * Endpoint: POST /api/auth/register
              */
             post("/register") {
-                val request = call.receive<RegisterRequest>()
+                val request = runCatching { call.receive<RegisterRequest>() }
+                    .onFailure {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "❌ Dữ liệu request không hợp lệ"))
+                        return@post
+                    }.getOrThrow()
 
-                val result = authService.registerUser(request)
-                result.fold(
+                // Kiểm tra từng field
+                when {
+                    request.username.isNullOrBlank() -> {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Tên không được để trống"))
+                        return@post
+                    }
+                    request.fullName.isNullOrBlank() -> {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Tên đầy đủ không được để trống"))
+                        return@post
+                    }
+                    request.email.isNullOrBlank() -> {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Email không được để trống"))
+                        return@post
+                    }
+                    request.password.isNullOrBlank() -> {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Mật khẩu không được để trống"))
+                        return@post
+                    }
+
+                }
+
+                authService.registerUser(request).fold(
                     onSuccess = { authResponse ->
                         call.respond(HttpStatusCode.Created, authResponse)
                     },
                     onFailure = { error ->
-                        // Tránh tiết lộ quá nhiều chi tiết lỗi nội bộ
+                        // Tránh tiết lộ chi tiết lỗi nội bộ
                         call.respond(HttpStatusCode.Conflict, mapOf("error" to (error.message ?: "Registration failed")))
                     }
                 )
@@ -42,21 +67,38 @@ fun Application.authRoutes(authService: AuthService) {
 
             /**
              * 📌 Đăng nhập
+             * Endpoint: POST /api/auth/login
              */
             post("/login") {
-                val request = call.receive<LoginRequest>()
+                val request = runCatching { call.receive<LoginRequest>() }
+                    .onFailure {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "❌ Dữ liệu request không hợp lệ"))
+                        return@post
+                    }.getOrThrow()
 
-                val result = authService.loginUser(request)
-                result.fold(
+                // Kiểm tra từng field
+                when {
+                    request.email.isNullOrBlank() -> {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Email không được để trống"))
+                        return@post
+                    }
+                    request.password.isNullOrBlank() -> {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Mật khẩu không được để trống"))
+                        return@post
+                    }
+                }
+
+                authService.loginUser(request).fold(
                     onSuccess = { loginResponse ->
                         call.respond(HttpStatusCode.OK, loginResponse)
                     },
-                    onFailure = { error ->
-                        // Tránh tiết lộ quá nhiều chi tiết lỗi nội bộ
-                        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to (error.message ?: "Invalid credentials")))
+                    onFailure = {
+                        // Dùng thông báo chung để tránh tiết lộ logic xác thực
+                        call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "Invalid credentials"))
                     }
                 )
             }
+
 
             // ✅ MỚI: Endpoint đăng xuất
             /**

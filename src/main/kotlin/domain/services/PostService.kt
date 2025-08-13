@@ -24,4 +24,9 @@ interface PostService {
 
     // Xóa tất cả bài viết của người dùng (dùng trong quá trình xóa tài khoản)
     suspend fun deleteAllPosts(principal: AuthPrincipal): Result<Boolean>
+
+    // Lấy tất cả bài viết của người dùng (dùng trong quá trình lấy thông tin người dùng)
+    suspend fun getAllPosts(): Result<List<PostResponse>>
+
+    //
 }

@@ -15,7 +15,54 @@ fun Application.postRoutes(postService: PostService) {
     routing {
         // Các route cần xác thực (JWT)
         authenticate("auth-jwt") {
+
+            // ✅ THÊM ROUTE CHO ADMIN Ở ĐÂY
+            route("api/admin") {
+
+                // ✅ Thêm route xoá toàn bộ
+                delete("delAllPost") {
+                    val principal = call.principal<AuthPrincipal>()
+                    if (principal == null) {
+                        call.respond(HttpStatusCode.Unauthorized, mapOf("message" to "Không được ủy quyền"))
+                        return@delete
+                    }
+
+                    postService.deleteAllPosts(principal).fold(
+                        onSuccess = {
+                            call.respond(HttpStatusCode.OK, mapOf("message" to "🧹 Đã xoá toàn bộ bài đăng thành công"))
+                        },
+                        onFailure = { e ->
+                            when (e.message) {
+                                "Unauthorized" -> call.respond(HttpStatusCode.Forbidden, mapOf("message" to "Chỉ admin mới được xoá toàn bộ bài viết"))
+                                else -> call.respond(HttpStatusCode.InternalServerError, mapOf("message" to "Lỗi khi xoá tất cả bài viết: ${e.message}"))
+                            }
+                        }
+                    )
+                }
+            }
+
             route("api/posts") {
+                // Lấy tất cả bài đăng từ database (Chỉ admin)
+                get {
+                    // Lấy thông tin principal nếu cần
+                    val principal = call.principal<AuthPrincipal>()
+                    if (principal == null) {
+                        call.respond(HttpStatusCode.Unauthorized, mapOf("message" to "Bạn cần đăng nhập"))
+                        return@get
+                    }
+
+                    postService.getAllPosts().fold(
+                        onSuccess = { posts ->
+                            call.respond(HttpStatusCode.OK, posts)
+                        },
+                        onFailure = { e ->
+                            call.respond(
+                                HttpStatusCode.InternalServerError,
+                                mapOf("message" to "Lỗi khi lấy tất cả bài đăng: ${e.message}")
+                            )
+                        }
+                    )
+                }
 
                 // Tạo bài đăng
                 post {
@@ -124,27 +171,6 @@ fun Application.postRoutes(postService: PostService) {
                     postService.getFeedPosts(principal.userId, page, size).fold(
                         onSuccess = { posts -> call.respond(HttpStatusCode.OK, posts) },
                         onFailure = { e -> call.respond(HttpStatusCode.InternalServerError, mapOf("message" to "Lỗi khi lấy bài đăng feed: ${e.message}")) }
-                    )
-                }
-
-                // ✅ Thêm route xoá toàn bộ
-                delete("delAllPost") {
-                    val principal = call.principal<AuthPrincipal>()
-                    if (principal == null) {
-                        call.respond(HttpStatusCode.Unauthorized, mapOf("message" to "Không được ủy quyền"))
-                        return@delete
-                    }
-
-                    postService.deleteAllPosts(principal).fold(
-                        onSuccess = {
-                            call.respond(HttpStatusCode.OK, mapOf("message" to "🧹 Đã xoá toàn bộ bài đăng thành công"))
-                        },
-                        onFailure = { e ->
-                            when (e.message) {
-                                "Unauthorized" -> call.respond(HttpStatusCode.Forbidden, mapOf("message" to "Chỉ admin mới được xoá toàn bộ bài viết"))
-                                else -> call.respond(HttpStatusCode.InternalServerError, mapOf("message" to "Lỗi khi xoá tất cả bài viết: ${e.message}"))
-                            }
-                        }
                     )
                 }
             }
