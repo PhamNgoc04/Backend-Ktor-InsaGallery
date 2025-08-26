@@ -107,13 +107,13 @@ fun Application.authRoutes(authService: AuthService) {
              */
             post("/logout") {
                 val refreshToken = try {
-                    call.receive<Map<String, String>>()["refreshToken"]
+                    call.receive<Map<String, String>>()["refreshToken"]?.trim()
                 } catch (e: Exception) {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "❌ Missing refreshToken in request body"))
                     return@post
                 }
 
-                if (refreshToken == null) {
+                if (refreshToken.isNullOrBlank()) {
                     call.respond(HttpStatusCode.BadRequest, mapOf("error" to "❌ refreshToken is required"))
                     return@post
                 }

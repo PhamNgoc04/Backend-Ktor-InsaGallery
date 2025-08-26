@@ -1,5 +1,6 @@
 package com.codewithngoc.instagallery.domain.repos
 
+import com.codewithngoc.instagallery.db.entities.CommentEntity
 import com.codewithngoc.instagallery.db.tables.PostVisibility
 import com.codewithngoc.instagallery.domain.models.MediaItem
 import com.codewithngoc.instagallery.domain.models.MediaResponse
@@ -24,10 +25,31 @@ interface PostRepository {
     // Lấy tất cả bài viết của người dùng
     suspend fun getAllPosts(): List<Post>
 
-
-    //
     suspend fun deleteMediaForPost(postId: Int)
+
     suspend fun addMediaToPost(postId: Int, mediaItem: MediaItem)
 
+    // ✅ Hàm mới: Thêm một bình luận
+    suspend fun addComment(
+        postId: Int,
+        userId: Int,
+        content: String,
+        parentCommentId: Int?
+    ): Int
+
+    // ✅ Hàm mới: Lấy danh sách bình luận của một bài đăng
+    suspend fun getCommentsForPost(
+        postId: Int,
+        page: Int,
+        size: Int
+    ): List<CommentEntity>
+
+    // ✅ Hàm mới: Lấy bình luận bằng ID
+    suspend fun getCommentById(commentId: Int): CommentEntity?
+
+    // ✅ Cập nhật số lượng bình luận của bài viết
+    suspend fun incrementCommentCount(postId: Int)
+
+    suspend fun getUserPosts(userId: Int, page: Int, size: Int): List<Post>
 
 }

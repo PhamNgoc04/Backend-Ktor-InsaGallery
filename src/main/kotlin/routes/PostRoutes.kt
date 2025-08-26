@@ -1,5 +1,6 @@
 package com.codewithngoc.instagallery.routes
 
+import com.codewithngoc.instagallery.domain.models.AddCommentRequest
 import com.codewithngoc.instagallery.domain.models.AuthPrincipal
 import com.codewithngoc.instagallery.domain.models.CreatePostRequest
 import com.codewithngoc.instagallery.domain.models.UpdatePostRequest
@@ -173,6 +174,165 @@ fun Application.postRoutes(postService: PostService) {
                         onFailure = { e -> call.respond(HttpStatusCode.InternalServerError, mapOf("message" to "Lỗi khi lấy bài đăng feed: ${e.message}")) }
                     )
                 }
+
+                // ✅ Thêm route bình luận bài đăng (POST)
+                // ✅ Route thêm bình luận cho bài viết
+                post("{postId}/comments") {
+                    val principal = call.principal<AuthPrincipal>()
+                    if (principal == null) {
+                        call.respond(
+                            HttpStatusCode.Unauthorized,
+                            mapOf("message" to "Bạn chưa đăng nhập")
+                        )
+                        return@post
+                    }
+
+                    val postId = call.parameters["postId"]?.toIntOrNull()
+                    if (postId == null || postId <= 0) {
+                        call.respond(
+                            HttpStatusCode.BadRequest,
+                            mapOf("message" to "ID bài viết không hợp lệ")
+                        )
+                        return@post
+                    }
+
+                    val request = runCatching { call.receive<AddCommentRequest>() }.getOrNull()
+                    if (request == null) {
+                        call.respond(
+                            HttpStatusCode.BadRequest,
+                            mapOf("message" to "Dữ liệu request không hợp lệ")
+                        )
+                        return@post
+                    }
+
+                    // ✅ Kiểm tra nội dung bình luận
+                    if (request.content.isBlank()) {
+                        call.respond(
+                            HttpStatusCode.BadRequest,
+                            mapOf("message" to "Nội dung bình luận không được để trống")
+                        )
+                        return@post
+                    }
+                    if (request.content.length > 500) { // Giới hạn độ dài
+                        call.respond(
+                            HttpStatusCode.BadRequest,
+                            mapOf("message" to "Nội dung bình luận quá dài, tối đa 500 ký tự")
+                        )
+                        return@post
+                    }
+
+                    // Thêm bình luận
+                    postService.addComment(postId, principal.userId, request).fold(
+                        onSuccess = { commentResponse ->
+                            call.respond(HttpStatusCode.Created, commentResponse)
+                        },
+                        onFailure = { e ->
+                            call.respond(
+                                HttpStatusCode.InternalServerError,
+                                mapOf("message" to "Lỗi khi thêm bình luận: ${e.localizedMessage}")
+                            )
+                        }
+                    )
+                }
+
+
+                // ✅ Route lấy danh sách bình luận (GET)
+                get("{postId}/comments") {
+                    try {
+                        val principal = call.principal<AuthPrincipal>()
+                        if (principal == null) {
+                            call.respond(HttpStatusCode.Unauthorized, mapOf("message" to "Không được ủy quyền"))
+                            return@get
+                        }
+
+                        val postId = call.parameters["postId"]?.toIntOrNull()
+                        if (postId == null) {
+                            call.respond(HttpStatusCode.BadRequest, mapOf("message" to "ID bài đăng không hợp lệ"))
+                            return@get
+                        }
+
+                        val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
+                        val size = call.request.queryParameters["size"]?.toIntOrNull() ?: 10
+
+                        if (page < 0 || size <= 0) {
+                            call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Tham số page hoặc size không hợp lệ"))
+                            return@get
+                        }
+
+                        postService.getCommentsForPost(postId, page, size).fold(
+                            onSuccess = { comments ->
+                                if (comments.isEmpty()) {
+                                    call.respond(HttpStatusCode.OK, mapOf("message" to "Chưa có bình luận nào"))
+                                } else {
+                                    val sortedComments = comments.sortedByDescending { it.createdAt }
+                                    call.respond(HttpStatusCode.OK, comments)
+                                }
+                            },
+                            onFailure = { e ->
+                                call.respond(
+                                    HttpStatusCode.InternalServerError,
+                                    mapOf("message" to "Lỗi khi lấy danh sách bình luận: ${e.localizedMessage}")
+                                )
+                            }
+                        )
+                    } catch (e: Exception) {
+                        // Bắt mọi lỗi không mong muốn để tránh 500 vô lý
+                        call.respond(
+                            HttpStatusCode.InternalServerError,
+                            mapOf("message" to "Đã xảy ra lỗi: ${e.localizedMessage}")
+                        )
+                    }
+                }
+
+                // ✅ THÊM ROUTE LẤY BÀI ĐĂNG CỦA NGƯỜI DÙNG TẠI ĐÂY
+                get("user/{userId}") {
+                    val principal = call.principal<AuthPrincipal>()
+                    if (principal == null) {
+                        call.respond(HttpStatusCode.Unauthorized, mapOf("message" to "Không được ủy quyền"))
+                        return@get
+                    }
+
+                    val userId = call.parameters["userId"]?.toIntOrNull()
+                    if (userId == null) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("message" to "ID người dùng không hợp lệ"))
+                        return@get
+                    }
+
+                    // 🔴 Bắt lỗi trực tiếp bằng try-catch
+                    try {
+                        val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
+                        val size = call.request.queryParameters["size"]?.toIntOrNull() ?: 10
+
+                        val posts = postService.getUserPosts(userId, page, size)
+
+                        // 🔴 Sử dụng .fold để xử lý Result
+                        posts.fold(
+                            onSuccess = { postResponses ->
+                                if (postResponses.isEmpty()) {
+                                    // Xử lý trường hợp không có bài viết nào
+                                    call.respond(HttpStatusCode.OK, mapOf("message" to "Người dùng này chưa có bài đăng nào"))
+                                } else {
+                                    call.respond(HttpStatusCode.OK, postResponses)
+                                }
+                            },
+                            onFailure = { e ->
+                                // 🔴 Kiểm tra và trả về status code cụ thể
+                                when (e.message) {
+                                    "User not found" -> call.respond(HttpStatusCode.NotFound, mapOf("message" to "Người dùng không tồn tại"))
+                                    "Unauthorized" -> call.respond(HttpStatusCode.Forbidden, mapOf("message" to "Bạn không có quyền xem bài viết của người dùng này"))
+                                    else -> {
+                                        // Trả về lỗi server chung nếu không khớp
+                                        call.respond(HttpStatusCode.InternalServerError, mapOf("message" to "Lỗi khi lấy bài đăng: ${e.message}"))
+                                    }
+                                }
+                            }
+                        )
+                    } catch (e: Exception) {
+                        // 🔴 Bắt mọi ngoại lệ không mong muốn để tránh crash
+                        call.respond(HttpStatusCode.InternalServerError, mapOf("message" to "Đã xảy ra lỗi không xác định: ${e.message}"))
+                    }
+                }
+
             }
         }
 

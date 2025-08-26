@@ -28,5 +28,21 @@ interface PostService {
     // Lấy tất cả bài viết của người dùng (dùng trong quá trình lấy thông tin người dùng)
     suspend fun getAllPosts(): Result<List<PostResponse>>
 
-    //
+    // ✅ Hàm mới: Bình luận bài đăng
+    suspend fun addComment(
+        postId: Int,
+        userId: Int,
+        request: AddCommentRequest
+    ): Result<CommentResponse>
+
+    // ✅ Hàm mới: Lấy danh sách bình luận của một bài đăng
+    suspend fun getCommentsForPost(
+        postId: Int,
+        page: Int,
+        size: Int
+    ): Result<List<CommentResponse>>
+
+    // ✅ Hàm mới: Lấy bài đăng theo ID user
+    suspend fun getUserPosts(userId: Int, page: Int, size: Int): Result<List<PostResponse>>
+
 }

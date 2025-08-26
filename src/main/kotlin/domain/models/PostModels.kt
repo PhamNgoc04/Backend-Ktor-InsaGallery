@@ -2,6 +2,8 @@ package com.codewithngoc.instagallery.domain.models
 
 import com.codewithngoc.instagallery.db.tables.MediaType
 import com.codewithngoc.instagallery.db.tables.PostVisibility
+import com.codewithngoc.instagallery.db.utils.InstantSerializer
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import java.time.Instant
 
@@ -14,6 +16,10 @@ data class Post(
     val visibility: PostVisibility = PostVisibility.PUBLIC,
     val likeCount: Int = 0, // Số lượng likes
     val commentCount: Int = 0, // Số lượng bình luận
+    @Serializable(with = InstantSerializer::class)
+    val createdAt: Instant,
+    @Serializable(with = InstantSerializer::class)
+    val updatedAt: Instant
 )
 
 @Serializable
@@ -70,7 +76,22 @@ data class PostResponse(
     val media: List<MediaResponse>, // Danh sách media của bài đăng
     val likeCount: Int,
     val commentCount: Int,
+    @Serializable(with = InstantSerializer::class) val createdAt: Instant,
+    @Serializable(with = InstantSerializer::class) val updatedAt: Instant
 )
 
+@Serializable
+data class AddCommentRequest(
+    val content: String,
+    val parentCommentId: Int? = null
+)
 
-
+@Serializable
+data class CommentResponse(
+    val commentId: Int,
+    val postId: Int,
+    val author: AuthorInfoResponse,
+    val content: String,
+    val parentCommentId: Int? = null,
+    val createdAt: String
+)
