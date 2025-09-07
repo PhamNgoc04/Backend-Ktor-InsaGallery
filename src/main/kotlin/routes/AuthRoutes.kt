@@ -100,41 +100,43 @@ fun Application.authRoutes(authService: AuthService) {
             }
 
 
-            // ✅ MỚI: Endpoint đăng xuất
-            /**
-             * 📌 Đăng xuất
-             * Yêu cầu refresh token trong body để vô hiệu hóa session.
-             */
-            post("/logout") {
-                val refreshToken = try {
-                    call.receive<Map<String, String>>()["refreshToken"]?.trim()
-                } catch (e: Exception) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "❌ Missing refreshToken in request body"))
-                    return@post
-                }
 
-                if (refreshToken.isNullOrBlank()) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "❌ refreshToken is required"))
-                    return@post
-                }
-
-                val result = authService.logout(refreshToken)
-                result.fold(
-                    onSuccess = { success ->
-                        if (success) {
-                            call.respond(HttpStatusCode.OK, mapOf("message" to "✅ Logged out successfully"))
-                        } else {
-                            call.respond(HttpStatusCode.NotFound, mapOf("error" to "Refresh token not found or already invalidated"))
-                        }
-                    },
-                    onFailure = { error ->
-                        call.respond(HttpStatusCode.InternalServerError, mapOf("error" to (error.message ?: "Failed to logout")))
-                    }
-                )
-            }
 
             // --- Các route được bảo vệ bằng JWT ---
             authenticate("auth-jwt") {
+
+                // ✅ MỚI: Endpoint đăng xuất
+                /**
+                 * 📌 Đăng xuất
+                 * Yêu cầu refresh token trong body để vô hiệu hóa session.
+                 */
+                post("/logout") {
+                    val refreshToken = try {
+                        call.receive<Map<String, String>>()["refreshToken"]?.trim()
+                    } catch (e: Exception) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "❌ Missing refreshToken in request body"))
+                        return@post
+                    }
+
+                    if (refreshToken.isNullOrBlank()) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "❌ refreshToken is required"))
+                        return@post
+                    }
+
+                    val result = authService.logout(refreshToken)
+                    result.fold(
+                        onSuccess = { success ->
+                            if (success) {
+                                call.respond(HttpStatusCode.OK, mapOf("message" to "✅ Logged out successfully"))
+                            } else {
+                                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Refresh token not found or already invalidated"))
+                            }
+                        },
+                        onFailure = { error ->
+                            call.respond(HttpStatusCode.InternalServerError, mapOf("error" to (error.message ?: "Failed to logout")))
+                        }
+                    )
+                }
 
                 /**
                  * 📌 Lấy thông tin user theo ID
