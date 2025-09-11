@@ -4,8 +4,10 @@ import com.codewithngoc.instagallery.db.initDB
 import com.codewithngoc.instagallery.di.configureKoin
 import com.codewithngoc.instagallery.domain.services.AuthService
 import com.codewithngoc.instagallery.domain.services.FileService
+import com.codewithngoc.instagallery.domain.services.LikeService
 import com.codewithngoc.instagallery.domain.services.PostService
 import com.codewithngoc.instagallery.routes.authRoutes
+import com.codewithngoc.instagallery.routes.likeRoutes
 import com.codewithngoc.instagallery.routes.postRoutes
 import com.codewithngoc.instagallery.routes.uploadRoutes
 import com.codewithngoc.instagallery.security.configSecurity
@@ -40,11 +42,13 @@ fun Application.module() {
 
     val authService = get<AuthService>()
     val postService = get<PostService>()
+    val likeService = get<LikeService>()
 
     configSecurity(authService)
 
     authRoutes(authService)
     postRoutes(postService)
+    likeRoutes(likeService)
 
     routing {
         // Route cho upload file
@@ -55,4 +59,6 @@ fun Application.module() {
         // Cấu hình để phục vụ các file tĩnh đã upload
         staticFiles("/media", File("media"))
     }
+
+
 }
