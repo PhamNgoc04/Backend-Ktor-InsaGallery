@@ -1,5 +1,6 @@
 package com.codewithngoc.instagallery.data.repos
 
+import com.codewithngoc.instagallery.db.entities.CommentEntity
 import com.codewithngoc.instagallery.db.entities.PostEntity
 import com.codewithngoc.instagallery.db.entities.PostMediaEntity
 import com.codewithngoc.instagallery.db.entities.UserEntity
@@ -10,6 +11,7 @@ import com.codewithngoc.instagallery.db.tables.LikesTable
 import com.codewithngoc.instagallery.db.tables.PostMediaTable
 import com.codewithngoc.instagallery.db.tables.PostsTable
 import com.codewithngoc.instagallery.db.tables.PostVisibility
+import com.codewithngoc.instagallery.db.tables.UsersTable
 import com.codewithngoc.instagallery.db.utils.dbQuery
 import com.codewithngoc.instagallery.domain.models.MediaItem
 import com.codewithngoc.instagallery.domain.models.MediaResponse
@@ -68,7 +70,9 @@ class PostRepositoryImpl : PostRepository {
                 location = it.location,
                 visibility = it.visibility,
                 likeCount = it.likeCount,
-                commentCount = it.commentCount
+                commentCount = it.commentCount,
+                createdAt = it.createdAt,
+                updatedAt = it.updatedAt
             )
         }
     }
@@ -95,7 +99,9 @@ class PostRepositoryImpl : PostRepository {
             location = postEntity.location,
             visibility = postEntity.visibility,
             likeCount = postEntity.likeCount,
-            commentCount = postEntity.commentCount
+            commentCount = postEntity.commentCount,
+            createdAt = postEntity.createdAt,
+            updatedAt = postEntity.updatedAt
         )
     }
 
@@ -129,7 +135,9 @@ class PostRepositoryImpl : PostRepository {
                     location = postRow[PostsTable.location],
                     visibility = postRow[PostsTable.visibility],
                     likeCount = postRow[PostsTable.likeCount],
-                    commentCount = postRow[PostsTable.commentCount]
+                    commentCount = postRow[PostsTable.commentCount],
+                    createdAt = postRow[PostsTable.createdAt],
+                    updatedAt = postRow[PostsTable.updatedAt]
                 )
             }
     }
@@ -147,7 +155,9 @@ class PostRepositoryImpl : PostRepository {
                     location = postRow[PostsTable.location],
                     visibility = postRow[PostsTable.visibility],
                     likeCount = postRow[PostsTable.likeCount],
-                    commentCount = postRow[PostsTable.commentCount]
+                    commentCount = postRow[PostsTable.commentCount],
+                    createdAt = postRow[PostsTable.createdAt],
+                    updatedAt = postRow[PostsTable.updatedAt]
                 )
             }
     }
@@ -178,16 +188,18 @@ class PostRepositoryImpl : PostRepository {
             .all()
             .orderBy(PostsTable.createdAt to SortOrder.DESC) // Sắp xếp mới nhất trước
             .map { postEntity ->
-            Post(
-                postId = postEntity.id.value,
-                userId = postEntity.userId.value,
-                caption = postEntity.caption,
-                location = postEntity.location,
-                visibility = postEntity.visibility,
-                likeCount = postEntity.likeCount,
-                commentCount = postEntity.commentCount
-            )
-        }
+                Post(
+                    postId = postEntity.id.value,
+                    userId = postEntity.userId.value,
+                    caption = postEntity.caption,
+                    location = postEntity.location,
+                    visibility = postEntity.visibility,
+                    likeCount = postEntity.likeCount,
+                    commentCount = postEntity.commentCount,
+                    createdAt = postEntity.createdAt,
+                    updatedAt = postEntity.updatedAt
+                )
+            }
     }
 
     override suspend fun deleteMediaForPost(postId: Int) {
@@ -212,6 +224,81 @@ class PostRepositoryImpl : PostRepository {
                 this.metadata = mediaItem.metadata
             }
         }
+    }
+
+    override suspend fun addComment(
+        postId: Int,
+        userId: Int,
+        content: String,
+        parentCommentId: Int?
+    ): Int = dbQuery {
+        val now = Instant.now()
+        val newComment = CommentEntity.new {
+            this.postId = EntityID(postId, PostsTable)
+            this.userId = EntityID(userId, UsersTable)
+            this.content = content
+            this.parentCommentId = parentCommentId?.let { EntityID(it, CommentsTable) }
+            this.createdAt = now
+            this.updatedAt = now
+        }
+        newComment.id.value
+    }
+
+    override suspend fun getCommentsForPost(
+        postId: Int,
+        page: Int,
+        size: Int
+    ): List<CommentEntity> = dbQuery {
+        CommentsTable
+            .select { CommentsTable.postId eq postId }
+            .orderBy(CommentsTable.createdAt to SortOrder.DESC)
+            .limit(size, (page * size).toLong())
+            .map { CommentEntity.wrapRow(it) }
+    }
+
+    override suspend fun getCommentById(commentId: Int): CommentEntity? = dbQuery {
+        CommentEntity.findById(commentId)
+    }
+
+    override suspend fun incrementCommentCount(postId: Int): Unit = dbQuery {
+        PostsTable.update({ PostsTable.id eq postId }) {
+            with(SqlExpressionBuilder) {
+                it.update(commentCount, commentCount + 1)
+            }
+        }
+    }
+
+    override suspend fun getUserPosts(userId: Int, page: Int, size: Int): List<Post> = dbQuery {
+        val offset = (page * size).toLong()
+        PostsTable
+            .select { PostsTable.userId eq userId }
+            .orderBy(PostsTable.createdAt to SortOrder.DESC)
+            .limit(size, offset)
+            .map { postRow ->
+                val postId = postRow[PostsTable.id].value
+                val mediaItems = PostMediaEntity.find { PostMediaTable.postId eq postId }.map {
+                    MediaResponse(
+                        mediaId = it.id.value,
+                        mediaFileUrl = it.mediaFileUrl,
+                        thumbnailUrl = it.thumbnailUrl,
+                        mediaType = it.mediaType,
+                        position = it.position,
+                        filterId = it.filterId?.value,
+                        metadata = it.metadata
+                    )
+                }
+                Post(
+                    postId = postId,
+                    userId = postRow[PostsTable.userId].value,
+                    caption = postRow[PostsTable.caption],
+                    visibility = postRow[PostsTable.visibility],
+                    location = postRow[PostsTable.location],
+                    likeCount = postRow[PostsTable.likeCount],
+                    commentCount = postRow[PostsTable.commentCount],
+                    createdAt = postRow[PostsTable.createdAt],
+                    updatedAt = postRow[PostsTable.updatedAt]
+                )
+            }
     }
 }
 

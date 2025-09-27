@@ -38,7 +38,9 @@ class PostEntity(id: EntityID<Int>) : IntEntity(id) {
             visibility = visibility,
             media = mediaList,
             likeCount = likeCount,
-            commentCount = commentCount
+            commentCount = commentCount,
+            createdAt = createdAt,
+            updatedAt = updatedAt
         )
     }
 

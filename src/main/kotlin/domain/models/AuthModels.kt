@@ -9,6 +9,7 @@ data class RegisterRequest(
     val password: String,
     val fullName: String,
 )
+
 @Serializable
 data class LoginRequest(val email: String, val password: String)
 
@@ -16,7 +17,8 @@ data class LoginRequest(val email: String, val password: String)
 data class LoginResponse(
     val userId: Int,
     val username: String,
-    val token: String
+    val token: String,
+    val refreshToken: String
 )
 
 @Serializable

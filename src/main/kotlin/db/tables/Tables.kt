@@ -41,7 +41,7 @@ object UserSessionsTable : IntIdTable("user_sessions") {
     val ipAddress = varchar("ip_address", 45).nullable()
     val refreshToken = varchar("refresh_token", 255).uniqueIndex()
     val createdAt = timestamp("created_at").clientDefault { Instant.now() }
-    val expiredAt = timestamp("expired_at")
+    val expiredAt = timestamp("expired_at").clientDefault { Instant.now().plusSeconds(7 * 24 * 3600) } // Mặc định 7 ngày
 }
 
 object FollowersTable : Table("followers") {

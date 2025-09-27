@@ -3,13 +3,16 @@ package com.codewithngoc.instagallery.data.services
 import com.codewithngoc.instagallery.db.entities.UserEntity
 import com.codewithngoc.instagallery.db.tables.PostVisibility
 import com.codewithngoc.instagallery.db.utils.dbQuery
+import com.codewithngoc.instagallery.domain.models.AddCommentRequest
 import com.codewithngoc.instagallery.domain.models.AuthPrincipal
 import com.codewithngoc.instagallery.domain.models.AuthorInfoResponse
+import com.codewithngoc.instagallery.domain.models.CommentResponse
 import com.codewithngoc.instagallery.domain.models.CreatePostRequest
 import com.codewithngoc.instagallery.domain.models.PostResponse
 import com.codewithngoc.instagallery.domain.models.UpdatePostRequest
 import com.codewithngoc.instagallery.domain.repos.PostRepository
 import com.codewithngoc.instagallery.domain.services.PostService
+import org.jetbrains.exposed.sql.exposedLogger
 
 class PostServiceImpl(
     private val postRepository: PostRepository
@@ -49,7 +52,9 @@ class PostServiceImpl(
                 visibility = post.visibility,
                 media = media,
                 likeCount = post.likeCount,
-                commentCount = post.commentCount
+                commentCount = post.commentCount,
+                createdAt = post.createdAt,
+                updatedAt = post.updatedAt
             )
 
             Result.success(postResponse)
@@ -88,7 +93,9 @@ class PostServiceImpl(
                     visibility = post.visibility,
                     media = media,
                     likeCount = post.likeCount,
-                    commentCount = post.commentCount
+                    commentCount = post.commentCount,
+                    createdAt = post.createdAt,
+                    updatedAt = post.updatedAt
                 )
             )
         } catch (e: Exception) {
@@ -150,7 +157,9 @@ class PostServiceImpl(
                     visibility = updatedPost.visibility,
                     media = media,
                     likeCount = updatedPost.likeCount,
-                    commentCount = updatedPost.commentCount
+                    commentCount = updatedPost.commentCount,
+                    createdAt = updatedPost.createdAt,
+                    updatedAt = updatedPost.updatedAt
                 )
             )
 
@@ -206,7 +215,9 @@ class PostServiceImpl(
                     visibility = post.visibility,
                     media = media,
                     likeCount = post.likeCount,
-                    commentCount = post.commentCount
+                    commentCount = post.commentCount,
+                    createdAt = post.createdAt,
+                    updatedAt = post.updatedAt
                 )
             }
             Result.success(responses)
@@ -240,7 +251,9 @@ class PostServiceImpl(
                     visibility = post.visibility,
                     media = media,
                     likeCount = post.likeCount,
-                    commentCount = post.commentCount
+                    commentCount = post.commentCount,
+                    createdAt = post.createdAt,
+                    updatedAt = post.updatedAt
                 )
             }
             Result.success(responses)
@@ -293,12 +306,120 @@ class PostServiceImpl(
                     visibility = post.visibility,
                     media = media,
                     likeCount = post.likeCount,
-                    commentCount = post.commentCount
+                    commentCount = post.commentCount,
+                    createdAt = post.createdAt,
+                    updatedAt = post.updatedAt
                 )
             }
             Result.success(responses)
         } catch (e: Exception) {
             e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun addComment(
+        postId: Int,
+        userId: Int,
+        request: AddCommentRequest
+    ): Result<CommentResponse> {
+        return try {
+            val commentId = postRepository.addComment(
+                postId = postId,
+                userId = userId,
+                content = request.content,
+                parentCommentId = request.parentCommentId
+            )
+
+            // Tăng số lượng bình luận trong bảng posts
+            postRepository.incrementCommentCount(postId)
+
+            val newComment = postRepository.getCommentById(commentId)
+                ?: return Result.failure(Exception("Comment not found"))
+
+            val authorEntity = dbQuery { UserEntity.findById(userId) }
+                ?: return Result.failure(Exception("User not found"))
+
+            val authorInfo = AuthorInfoResponse(
+                userId = authorEntity.id.value,
+                username = authorEntity.username,
+                profilePictureUrl = authorEntity.profilePictureUrl
+            )
+
+            // TODO: Tạo thông báo cho chủ bài viết (và chủ bình luận cha)
+
+            Result.success(newComment.toCommentResponse(authorInfo))
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getCommentsForPost(
+        postId: Int,
+        page: Int,
+        size: Int
+    ): Result<List<CommentResponse>> {
+        return try {
+            val commentEntities = postRepository.getCommentsForPost(postId, page, size)
+            val comments = commentEntities.map { commentEntity ->
+                val authorEntity = dbQuery { UserEntity.findById(commentEntity.userId.value) }
+                    ?: throw Exception("Author not found for comment ID: ${commentEntity.id.value}")
+
+                val authorInfo = AuthorInfoResponse(
+                    userId = authorEntity.id.value,
+                    username = authorEntity.username,
+                    profilePictureUrl = authorEntity.profilePictureUrl
+                )
+                commentEntity.toCommentResponse(authorInfo)
+            }
+
+            // TODO: Sắp xếp lại bình luận theo cấu trúc cha-con
+
+            Result.success(comments)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getUserPosts(userId: Int, page: Int, size: Int): Result<List<PostResponse>> {
+        return try {
+            // ✅ Pass 'page' and 'size' directly to the repository
+            val posts = postRepository.getUserPosts(userId, page, size)
+
+            val responses = posts.map { post ->
+                val media = postRepository.getMediaForPost(post.postId) // Use post.id
+                val authorEntity = dbQuery { UserEntity.findById(post.userId) }
+                    ?: throw Exception("Author not found for post ID: ${post.postId}")
+
+                val author = AuthorInfoResponse(
+                    userId = authorEntity.id.value,
+                    username = authorEntity.username,
+                    profilePictureUrl = authorEntity.profilePictureUrl
+                )
+
+                // Lấy số liệu thống kê bài viết
+                val likeCount = postRepository.getPostLikeCount(post.postId) // Use post.id
+                val commentCount = postRepository.getPostCommentCount(post.postId) // Use post.id
+
+                PostResponse(
+                    postId = post.postId, // Use post.id
+                    author = author,
+                    caption = post.caption,
+                    location = post.location,
+                    visibility = post.visibility,
+                    media = media,
+                    likeCount = likeCount,
+                    commentCount = commentCount,
+                    createdAt = post.createdAt,
+                    updatedAt = post.updatedAt
+                )
+            }
+            Result.success(responses)
+        } catch (e: Exception) {
+            exposedLogger.error("Error getting posts for user $userId: ${e.message}", e)
             Result.failure(e)
         }
     }

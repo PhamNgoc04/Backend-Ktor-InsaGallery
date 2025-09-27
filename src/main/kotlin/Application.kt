@@ -4,8 +4,10 @@ import com.codewithngoc.instagallery.db.initDB
 import com.codewithngoc.instagallery.di.configureKoin
 import com.codewithngoc.instagallery.domain.services.AuthService
 import com.codewithngoc.instagallery.domain.services.FileService
+import com.codewithngoc.instagallery.domain.services.LikeService
 import com.codewithngoc.instagallery.domain.services.PostService
 import com.codewithngoc.instagallery.routes.authRoutes
+import com.codewithngoc.instagallery.routes.likeRoutes
 import com.codewithngoc.instagallery.routes.postRoutes
 import com.codewithngoc.instagallery.routes.uploadRoutes
 import com.codewithngoc.instagallery.security.configSecurity
@@ -17,15 +19,23 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import kotlinx.serialization.json.Json
 import org.koin.ktor.ext.get
+import org.mindrot.jbcrypt.BCrypt
 import java.io.File
 
 fun main(args: Array<String>) {
     io.ktor.server.netty.EngineMain.main(args)
 }
 
+//fun main() {
+//    val password = "123456789"
+//    val hash = BCrypt.hashpw(password, BCrypt.gensalt(12))
+//    println(hash)
+//}
+
 fun Application.module() {
 
     configureKoin()
+
 //    configureContentNegotiation()
     install(ContentNegotiation) {
         json(Json {
@@ -40,11 +50,13 @@ fun Application.module() {
 
     val authService = get<AuthService>()
     val postService = get<PostService>()
+    val likeService = get<LikeService>()
 
     configSecurity(authService)
 
     authRoutes(authService)
     postRoutes(postService)
+    likeRoutes(likeService)
 
     routing {
         // Route cho upload file
@@ -55,4 +67,6 @@ fun Application.module() {
         // Cấu hình để phục vụ các file tĩnh đã upload
         staticFiles("/media", File("media"))
     }
+
+
 }

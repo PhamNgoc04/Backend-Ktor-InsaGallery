@@ -2,6 +2,7 @@ package com.codewithngoc.instagallery.data.services
 
 import com.codewithngoc.instagallery.config.generateToken
 import com.codewithngoc.instagallery.db.entities.UserEntity
+import com.codewithngoc.instagallery.db.tables.UserSessionsTable
 import com.codewithngoc.instagallery.db.utils.dbQuery
 import com.codewithngoc.instagallery.domain.models.AuthResponse
 import com.codewithngoc.instagallery.domain.models.LoginRequest
@@ -12,6 +13,10 @@ import com.codewithngoc.instagallery.domain.models.UserProfileResponse
 import com.codewithngoc.instagallery.domain.repos.AuthRepository
 import com.codewithngoc.instagallery.domain.services.AuthService
 import io.ktor.server.application.Application
+import org.jetbrains.exposed.sql.insert
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+import java.util.UUID
 
 class AuthServiceImpl(
     private val authRepository: AuthRepository,
@@ -39,6 +44,22 @@ class AuthServiceImpl(
         }
     }
 
+    // Đăng ký tài khoản Admin
+    override suspend fun registerAdmin(registerRequest: RegisterRequest): Result<AuthResponse> {
+        return try {
+            val user = authRepository.registerAdmin(registerRequest)
+            if (user != null) {
+                val token = app.generateToken(user)
+                Result.success(AuthResponse(user, token))
+            } else {
+                Result.failure(Exception("Admin username or email already exists"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
     // ✅ Đăng nhập người dùng
     override suspend fun loginUser(request: LoginRequest): Result<LoginResponse> {
         return try {
@@ -47,10 +68,28 @@ class AuthServiceImpl(
                 // 🔑 Sinh JWT token
                 val token = app.generateToken(user) // giả sử bạn có jwtService
 
+                // 🔑 Sinh refresh token
+                val refreshToken = UUID.randomUUID().toString()
+                val now = Instant.now()
+                val refreshExpiredAt  = now.plus(7, ChronoUnit.DAYS) // refresh token có hạn 7 ngày
+
+                // ✅ Lưu refresh token vào bảng UserSessionsTable
+                dbQuery {
+                    UserSessionsTable.insert {
+                        it[userId] = user.userId
+                        it[deviceInfo] = "Unknown device" // có thể lấy từ User-Agent
+                        it[ipAddress] = "0.0.0.0"         // có thể lấy từ call.request.origin.remoteHost
+                        it[UserSessionsTable.refreshToken] = refreshToken
+                        it[createdAt] = now
+                        it[expiredAt] = refreshExpiredAt
+                    }
+                }
+
                 val response = LoginResponse(
                     userId = user.userId,
                     username = user.username,
-                    token = token
+                    token = token,
+                    refreshToken = refreshToken
                 )
                 Result.success(response)
             } else {
@@ -61,7 +100,7 @@ class AuthServiceImpl(
         }
     }
 
-    // ✅ Thay đổi mật khẩu
+    // ✅ Đăng xuất
     override suspend fun logout(refreshToken: String): Result<Boolean> {
         return try {
            val success = authRepository.logout(refreshToken)

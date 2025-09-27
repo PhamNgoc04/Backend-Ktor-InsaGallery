@@ -49,6 +49,32 @@ class AuthRepositoryImpl : AuthRepository {
         }
     }
 
+
+    override suspend fun registerAdmin(registerRequest: RegisterRequest): User? {
+        return dbQuery {
+            val existingUser = UserEntity.find {
+                (UsersTable.username eq registerRequest.username) or
+                        (UsersTable.email eq registerRequest.email)
+            }.firstOrNull()
+
+            if (existingUser != null) return@dbQuery null
+
+            val newAdmin = UserEntity.new {
+                username = registerRequest.username
+                email = registerRequest.email
+                passwordHash = PasswordUtils.hashPassword(registerRequest.password)
+                fullName = registerRequest.fullName
+                userType = UserType.CLIENT
+                role = Role.ADMIN          // 🔑 khác USER
+                createdAt = Instant.now()
+                updatedAt = Instant.now()
+            }
+
+            newAdmin.toUser()
+        }
+    }
+
+
     // ✅ Xác thực đăng nhập → trả về User nếu đúng
     override suspend fun loginUser(request: LoginRequest): User? {
         return dbQuery {

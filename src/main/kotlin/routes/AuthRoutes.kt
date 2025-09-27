@@ -1,5 +1,6 @@
 package com.codewithngoc.instagallery.routes
 
+import com.codewithngoc.instagallery.db.tables.Role
 import com.codewithngoc.instagallery.domain.models.AuthPrincipal // Đảm bảo AuthPrincipal của bạn được định nghĩa đúng
 import com.codewithngoc.instagallery.domain.models.LoginRequest
 import com.codewithngoc.instagallery.domain.models.RegisterRequest
@@ -7,6 +8,7 @@ import com.codewithngoc.instagallery.domain.models.UpdateProfileRequest
 import com.codewithngoc.instagallery.domain.services.AuthService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
+import io.ktor.server.auth.UserIdPrincipal
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
@@ -21,6 +23,71 @@ import io.ktor.server.routing.put
 
 fun Application.authRoutes(authService: AuthService) {
     routing {
+
+        authenticate("auth-jwt") {
+            route("/api/admin") {
+
+                /**
+                 * 📌 Tạo tài khoản Admin mới
+                 * Endpoint: POST /api/admin/create
+                 * Yêu cầu: SUPER_ADMIN mới có quyền
+                 */
+                post("/create") {
+                    val request = runCatching { call.receive<RegisterRequest>() }
+                        .onFailure {
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                mapOf("error" to "❌ Dữ liệu request không hợp lệ")
+                            )
+                            return@post
+                        }.getOrThrow()
+
+                    // ✅ Kiểm tra quyền SUPER_ADMIN
+                    val principal = call.principal<AuthPrincipal>()
+                    if (principal == null || principal.role != Role.ADMIN.name) {
+                        call.respond(
+                            HttpStatusCode.Forbidden,
+                            mapOf("error" to "⛔ Bạn không có quyền tạo admin")
+                        )
+                        return@post
+                    }
+
+                    // ✅ Kiểm tra dữ liệu đầu vào
+                    when {
+                        request.username.isNullOrBlank() -> {
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Tên không được để trống"))
+                            return@post
+                        }
+                        request.fullName.isNullOrBlank() -> {
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Tên đầy đủ không được để trống"))
+                            return@post
+                        }
+                        request.email.isNullOrBlank() -> {
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Email không được để trống"))
+                            return@post
+                        }
+                        request.password.isNullOrBlank() -> {
+                            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "Mật khẩu không được để trống"))
+                            return@post
+                        }
+                    }
+
+                    // ✅ Gọi service để tạo Admin
+                    authService.registerAdmin(request).fold(
+                        onSuccess = { authResponse ->
+                            call.respond(HttpStatusCode.Created, authResponse)
+                        },
+                        onFailure = { error ->
+                            call.respond(
+                                HttpStatusCode.Conflict,
+                                mapOf("error" to (error.message ?: "❌ Tạo admin thất bại"))
+                            )
+                        }
+                    )
+                }
+            }
+        }
+
         route("/api/auth") {
             /**
              * 📌 Đăng ký tài khoản mới
@@ -100,41 +167,43 @@ fun Application.authRoutes(authService: AuthService) {
             }
 
 
-            // ✅ MỚI: Endpoint đăng xuất
-            /**
-             * 📌 Đăng xuất
-             * Yêu cầu refresh token trong body để vô hiệu hóa session.
-             */
-            post("/logout") {
-                val refreshToken = try {
-                    call.receive<Map<String, String>>()["refreshToken"]
-                } catch (e: Exception) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "❌ Missing refreshToken in request body"))
-                    return@post
-                }
 
-                if (refreshToken == null) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf("error" to "❌ refreshToken is required"))
-                    return@post
-                }
-
-                val result = authService.logout(refreshToken)
-                result.fold(
-                    onSuccess = { success ->
-                        if (success) {
-                            call.respond(HttpStatusCode.OK, mapOf("message" to "✅ Logged out successfully"))
-                        } else {
-                            call.respond(HttpStatusCode.NotFound, mapOf("error" to "Refresh token not found or already invalidated"))
-                        }
-                    },
-                    onFailure = { error ->
-                        call.respond(HttpStatusCode.InternalServerError, mapOf("error" to (error.message ?: "Failed to logout")))
-                    }
-                )
-            }
 
             // --- Các route được bảo vệ bằng JWT ---
             authenticate("auth-jwt") {
+
+                // ✅ MỚI: Endpoint đăng xuất
+                /**
+                 * 📌 Đăng xuất
+                 * Yêu cầu refresh token trong body để vô hiệu hóa session.
+                 */
+                post("/logout") {
+                    val refreshToken = try {
+                        call.receive<Map<String, String>>()["refreshToken"]?.trim()
+                    } catch (e: Exception) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "❌ Missing refreshToken in request body"))
+                        return@post
+                    }
+
+                    if (refreshToken.isNullOrBlank()) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("error" to "❌ refreshToken is required"))
+                        return@post
+                    }
+
+                    val result = authService.logout(refreshToken)
+                    result.fold(
+                        onSuccess = { success ->
+                            if (success) {
+                                call.respond(HttpStatusCode.OK, mapOf("message" to "✅ Logged out successfully"))
+                            } else {
+                                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Refresh token not found or already invalidated"))
+                            }
+                        },
+                        onFailure = { error ->
+                            call.respond(HttpStatusCode.InternalServerError, mapOf("error" to (error.message ?: "Failed to logout")))
+                        }
+                    )
+                }
 
                 /**
                  * 📌 Lấy thông tin user theo ID

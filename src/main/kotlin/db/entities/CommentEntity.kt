@@ -2,6 +2,7 @@ package com.codewithngoc.instagallery.db.entities
 
 import com.codewithngoc.instagallery.db.tables.CommentsTable
 import com.codewithngoc.instagallery.domain.models.AuthorInfoResponse
+import com.codewithngoc.instagallery.domain.models.CommentResponse
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
@@ -28,4 +29,14 @@ class CommentEntity(id: EntityID<Int>) : IntEntity(id) {
 //            createdAt = createdAt.toString()
 //        )
 //    }
+    fun toCommentResponse(authorInfo: AuthorInfoResponse): CommentResponse {
+        return CommentResponse(
+            commentId = id.value,
+            postId = postId.value,
+            author = authorInfo,
+            content = content,
+            parentCommentId = parentCommentId?.value,
+            createdAt = createdAt.toString()
+        )
+    }
 }

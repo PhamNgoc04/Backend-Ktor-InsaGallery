@@ -14,6 +14,9 @@ interface AuthService {
     // Đăng ký người dùng mới
     suspend fun registerUser(registerRequest: RegisterRequest): Result<AuthResponse>
 
+    // Đăng ký admin
+    suspend fun registerAdmin(registerRequest: RegisterRequest): Result<AuthResponse>
+
     // Đăng nhập người dùng
     suspend fun loginUser(request: LoginRequest): Result<LoginResponse>
 
