@@ -44,6 +44,22 @@ class AuthServiceImpl(
         }
     }
 
+    // Đăng ký tài khoản Admin
+    override suspend fun registerAdmin(registerRequest: RegisterRequest): Result<AuthResponse> {
+        return try {
+            val user = authRepository.registerAdmin(registerRequest)
+            if (user != null) {
+                val token = app.generateToken(user)
+                Result.success(AuthResponse(user, token))
+            } else {
+                Result.failure(Exception("Admin username or email already exists"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
     // ✅ Đăng nhập người dùng
     override suspend fun loginUser(request: LoginRequest): Result<LoginResponse> {
         return try {

@@ -46,6 +46,8 @@ class LikeServiceImpl(
     }
 
     override suspend fun countLikes(postId: Int): Result<Int> {
-        TODO("Not yet implemented")
+        return runCatching {
+            likeRepository.countLikes(postId)
+        }
     }
 }

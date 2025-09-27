@@ -12,6 +12,9 @@ interface AuthRepository {
     // ✅ Tạo người dùng mới (hash password trước khi gọi hàm này)
     suspend fun registerUser(registerRequest: RegisterRequest): User?
 
+    // Tạo tài khoản admin
+    suspend fun registerAdmin(registerRequest: RegisterRequest): User?
+
     // ✅ Xác thực đăng nhập → trả về User nếu đúng
     suspend fun loginUser(request: LoginRequest): User?
 

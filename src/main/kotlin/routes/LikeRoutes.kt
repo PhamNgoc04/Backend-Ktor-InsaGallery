@@ -108,6 +108,28 @@ fun Application.likeRoutes(likeService: LikeService) {
                         }
                     )
                 }
+
+                // ✅ Lấy tổng số lượt like của bài viết
+                get("count") {
+                    val postId = call.parameters["postId"]?.toIntOrNull()
+                    if (postId == null) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("message" to "❌ ID bài viết không hợp lệ"))
+                        return@get
+                    }
+
+                    likeService.countLikes(postId).fold(
+                        onSuccess = { count ->
+                            call.respond(HttpStatusCode.OK, mapOf("likeCount" to count))
+                        },
+                        onFailure = { e ->
+                            call.respond(
+                                HttpStatusCode.InternalServerError,
+                                mapOf("message" to "⚠️ Lỗi khi đếm like: ${e.message}")
+                            )
+                        }
+                    )
+                }
+
             }
         }
     }

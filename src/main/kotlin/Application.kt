@@ -19,15 +19,23 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import kotlinx.serialization.json.Json
 import org.koin.ktor.ext.get
+import org.mindrot.jbcrypt.BCrypt
 import java.io.File
 
 fun main(args: Array<String>) {
     io.ktor.server.netty.EngineMain.main(args)
 }
 
+//fun main() {
+//    val password = "123456789"
+//    val hash = BCrypt.hashpw(password, BCrypt.gensalt(12))
+//    println(hash)
+//}
+
 fun Application.module() {
 
     configureKoin()
+
 //    configureContentNegotiation()
     install(ContentNegotiation) {
         json(Json {
